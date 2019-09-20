@@ -1,29 +1,33 @@
 
 #%%
+""" For feature engineering """
 import csv
 import pandas as pd
 import numpy as np
 from scipy.stats import linregress
 import matplotlib.pyplot as plt
+""" For model fitting """
+from sklearn.model_selection import train_test_split 
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import metrics
+import os
 
-timespan = {"t_WindSpeed" : 12 , "t_WindDirection" : 12 , "t_Temperature" : 12,
-            "t_RelativeHumindity" : 12 , "t_BarometricPressure" : 12 , "t_RainVolume" : 12 }
+print(os.getcwd())
 
 attributes = ("WindSpeed","WindDirection","Temperature","RelativeHumindity","BarometricPressure")
-
 
 headers = [str(y) + str(x) for x in attributes for y in ["sl_","m_","std_"]]
 headers.append("PM2.5(ug/m3)")
 
-
-for ele in headers:
-        print(ele)
+df_data = pd.read_csv("train_data.csv", sep =',' , header = 0)
 
 with open('syn_data.csv', mode='w', newline='') as conv_file:
     writer = csv.writer(conv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow(headers)
+    
+    timespan = {"t_WindSpeed" : 12 , "t_WindDirection" : 12 , "t_Temperature" : 12,
+                "t_RelativeHumindity" : 12 , "t_BarometricPressure" : 12 , "t_RainVolume" : 12 }
 
-    df_data = pd.read_csv("train_data.csv", sep =',' , header = 0)
     
     count_row,count_col = df_data.shape
     maxSpan = max(timespan.values())
@@ -33,7 +37,7 @@ with open('syn_data.csv', mode='w', newline='') as conv_file:
         Y = df_data.values[i:i+maxSpan,7].astype("float64")
         shift = df_data.values[i+12+11 , 7]
 
-        if (i+maxSpan*2) == count_row:
+        if (i+maxSpan+12) == count_row:
                 break
 
         buffer = []
@@ -83,5 +87,30 @@ with open('syn_data.csv', mode='w', newline='') as conv_file:
         buffer.append(shift)
         writer.writerow(buffer)
         
+
+
+""" 
+Model Fitting Section
+"""
+df_data = pd.read_csv("syn_data.csv", sep =',' , header = 0)
+X = df_data.values[:,0:15]
+Y = df_data.values[:,15]
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
+
+rf = RandomForestRegressor(n_estimators = 91,criterion="mse", random_state = 6)
+rf.fit(X_train, y_train)
+
+y_pred = rf.predict(X_test)
+y_pred = np.around(y_pred)
+
+df1 = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred})
+print(df1.head(25))
+
+print('Mean Absolute Error:', metrics.mean_absolute_error(y_test, y_pred))  
+print('Mean Squared Error:', metrics.mean_squared_error(y_test, y_pred))  
+print('Root Mean Squared Error:', np.sqrt(metrics.mean_squared_error(y_test, y_pred)))
+
 #%%
+def evaluateAccuracy(numlist):
+        timespan.update(zip(timespan,numlist))
 
